@@ -24,6 +24,8 @@ models/
 *.sqlite
 *.sqlite3
 *.db
+# generated narration: demo_page.py and verification runs
+*.wav
 
 # Personal AI assistant config — never commit
 AGENTS.md
