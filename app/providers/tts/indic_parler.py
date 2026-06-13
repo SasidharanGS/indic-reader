@@ -6,10 +6,12 @@ use this backend::
 
     uv sync --extra models
 
-The voice is chosen by a natural-language **description** string (passed as
-``voice``), giving a consistent voice across a whole book without a reference
-clip. ``speed`` and ``lang`` are accepted for interface compatibility but are not
-yet applied (Parler has no direct speed control); both are future refinements.
+The voice is chosen by a natural-language **description**. By default we name one
+of the model's *recommended speakers* for the detected ``lang`` — the model card
+notes this is what keeps the voice consistent and intelligible (without a named
+speaker the voice is randomly sampled and often garbled). Pass an explicit
+``voice`` description to override. ``speed`` is accepted for interface
+compatibility but not yet applied (Parler has no direct speed control).
 """
 
 from __future__ import annotations
@@ -21,10 +23,35 @@ from app.providers.tts.base import Audio
 _INSTALL_HINT = "uv sync --extra models"
 
 MODEL_ID = "ai4bharat/indic-parler-tts"
-DEFAULT_DESCRIPTION = (
-    "A clear, natural-sounding speaker reads at a moderate, steady pace, with "
-    "high-quality audio and no background noise."
-)
+
+# Recommended speakers per language (ai4bharat/indic-parler-tts model card).
+# Naming one keeps the voice stable and intelligible; omitting it yields a
+# random, often garbled voice.
+_SPEAKERS = {
+    "en": "Thoma",
+    "hi": "Rohit",
+    "mr": "Sanjay",
+    "ne": "Amrita",
+    "bn": "Arjun",
+    "pa": "Divjot",
+    "gu": "Yash",
+    "or": "Manas",
+    "ta": "Jaya",
+    "te": "Prakash",
+    "kn": "Suresh",
+    "ml": "Anjali",
+}
+_FALLBACK_SPEAKER = "Thoma"
+
+
+def _description_for(lang: str) -> str:
+    """Build a description naming the recommended speaker for ``lang``."""
+    speaker = _SPEAKERS.get(lang, _FALLBACK_SPEAKER)
+    return (
+        f"{speaker}'s voice is clear and natural, at a moderate speed and pitch. "
+        "The recording is very high quality, with very clear audio and almost no "
+        "background noise."
+    )
 
 
 def _is_gated_or_auth_error(exc: Exception) -> bool:
@@ -49,7 +76,7 @@ class IndicParlerProvider:
         hf_token: str | None = None,
     ) -> None:
         self._device = device
-        self._description = description or DEFAULT_DESCRIPTION
+        self._description = description  # explicit override; else per-language default
         self._hf_token = hf_token
         self._model = None
         self._tokenizer = None
@@ -101,7 +128,7 @@ class IndicParlerProvider:
         self._ensure_loaded()
         import numpy as np
 
-        description = voice or self._description
+        description = voice or self._description or _description_for(lang)
         desc = self._description_tokenizer(description, return_tensors="pt").to(self._device)
         prompt = self._tokenizer(text, return_tensors="pt").to(self._device)
 
