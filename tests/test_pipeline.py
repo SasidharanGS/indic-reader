@@ -28,6 +28,13 @@ class CountingTTS(MockTTSProvider):
         return super().synthesize(text, lang, voice=voice, speed=speed)
 
 
+class FailingTTS:
+    """TTS that always raises, to exercise graceful degradation."""
+
+    def synthesize(self, text, lang, voice=None, speed=1.0):
+        raise RuntimeError("model is gated")
+
+
 def test_run_produces_text_and_audio_with_mocks():
     pipe = Pipeline(settings=MOCK_SETTINGS)
     result = pipe.run(b"image-bytes")
@@ -66,3 +73,11 @@ def test_second_run_hits_cache_and_skips_resynthesis():
     second = pipe.run(b"x")
     assert second.cache_hits == len(second.chunks)
     assert tts.calls == calls_after_first  # no new synthesis
+
+
+def test_tts_failure_degrades_to_text():
+    pipe = Pipeline(ocr=FakeOCR("Hello world."), tts=FailingTTS(), settings=MOCK_SETTINGS)
+    result = pipe.run(b"x")
+    assert result.text  # recognized text is preserved
+    assert result.audio is None
+    assert result.tts_error and "gated" in result.tts_error

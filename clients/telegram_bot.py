@@ -40,10 +40,11 @@ START_MESSAGE = (
 
 def build_reply(
     pipeline: Pipeline, image: bytes, lang_hint: str | None = None
-) -> tuple[str, bytes]:
-    """Run the pipeline and return (recognized_text, wav_bytes). Pure and testable."""
+) -> tuple[str, bytes | None, str | None]:
+    """Run the pipeline → (recognized_text, wav_bytes | None, tts_error). Testable."""
     result = pipeline.run(image, lang_hint=lang_hint)
-    return result.text, to_wav_bytes(result.audio)
+    wav = to_wav_bytes(result.audio) if result.audio is not None else None
+    return result.text, wav, result.tts_error
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -59,10 +60,13 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     pipeline: Pipeline = context.bot_data["pipeline"]
     # Inference is blocking — keep the event loop responsive.
-    text, wav = await asyncio.to_thread(build_reply, pipeline, image, lang_hint)
+    text, wav, tts_error = await asyncio.to_thread(build_reply, pipeline, image, lang_hint)
 
     await message.reply_text(text[:MAX_TEXT_PREVIEW] or "(no text recognized)")
-    await message.reply_audio(audio=io.BytesIO(wav), filename="page.wav", title="Indic Reader")
+    if wav is not None:
+        await message.reply_audio(audio=io.BytesIO(wav), filename="page.wav", title="Indic Reader")
+    elif tts_error:
+        await message.reply_text(f"⚠️ Audio unavailable: {tts_error[:300]}")
 
 
 def build_application(

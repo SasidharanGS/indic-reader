@@ -16,8 +16,9 @@ def _mock_pipeline() -> Pipeline:
 
 
 def test_build_reply_returns_text_and_wav():
-    text, wav = build_reply(_mock_pipeline(), b"image-bytes", lang_hint="hi")
+    text, wav, tts_error = build_reply(_mock_pipeline(), b"image-bytes", lang_hint="hi")
     assert text
+    assert tts_error is None
     assert wav[:4] == b"RIFF" and wav[8:12] == b"WAVE"  # valid WAV header
 
 
@@ -54,3 +55,36 @@ def test_build_application_wires_handlers():
 def test_build_application_requires_token():
     with pytest.raises(RuntimeError, match="TELEGRAM_BOT_TOKEN"):
         build_application(settings=Settings(_env_file=None, telegram_bot_token=None))
+
+
+def test_handle_photo_degrades_to_text_when_audio_missing():
+    from app.pipeline import PageResult
+
+    pipeline = MagicMock()
+    pipeline.run.return_value = PageResult(
+        text="recognized text",
+        lang="en",
+        chunks=["recognized text"],
+        audio=None,
+        cache_hits=0,
+        tts_error="model is gated",
+    )
+
+    tg_file = MagicMock()
+    tg_file.download_as_bytearray = AsyncMock(return_value=bytearray(b"img"))
+    photo = MagicMock()
+    photo.get_file = AsyncMock(return_value=tg_file)
+
+    message = MagicMock()
+    message.photo = [photo]
+    message.caption = None
+    message.reply_text = AsyncMock()
+    message.reply_audio = AsyncMock()
+
+    update = MagicMock(message=message)
+    context = MagicMock(bot_data={"pipeline": pipeline})
+
+    asyncio.run(handle_photo(update, context))
+
+    assert message.reply_text.await_count == 2  # recognized text + "audio unavailable" note
+    message.reply_audio.assert_not_awaited()
