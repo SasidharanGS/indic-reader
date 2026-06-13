@@ -178,6 +178,18 @@ def find_chunk_by_hash(conn: sqlite3.Connection, chunk_hash: str) -> Chunk | Non
     return _chunk(row) if row else None
 
 
+def get_chunk(conn: sqlite3.Connection, chunk_id: int) -> Chunk | None:
+    row = conn.execute("SELECT * FROM chunks WHERE id = ?", (chunk_id,)).fetchone()
+    return _chunk(row) if row else None
+
+
+def list_chunks_for_page(conn: sqlite3.Connection, page_id: int) -> list[Chunk]:
+    rows = conn.execute(
+        "SELECT * FROM chunks WHERE page_id = ? ORDER BY idx", (page_id,)
+    ).fetchall()
+    return [_chunk(row) for row in rows]
+
+
 # --- playback --------------------------------------------------------------
 
 

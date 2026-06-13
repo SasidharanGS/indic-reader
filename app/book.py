@@ -12,7 +12,8 @@ import sqlite3
 from pathlib import Path
 
 from app.audio.cache import chunk_key
-from app.audio.wav import to_wav_bytes
+from app.audio.concat import concat
+from app.audio.wav import read_wav, to_wav_bytes
 from app.config import Settings, get_settings
 from app.providers.ocr.base import OCRProvider
 from app.providers.registry import get_ocr_provider, get_tts_provider
@@ -101,3 +102,42 @@ class BookService:
         if cached and cached.audio_path and Path(cached.audio_path).exists():
             return cached.audio_path
         return None
+
+    # --- playback ----------------------------------------------------------
+
+    def render_page_audio(self, page_id: int) -> bytes | None:
+        """Concatenate a page's cached chunk clips into one WAV (bytes)."""
+        chunks = repo.list_chunks_for_page(self.conn, page_id)
+        clips = [
+            read_wav(c.audio_path) for c in chunks if c.audio_path and Path(c.audio_path).exists()
+        ]
+        if not clips:
+            return None
+        return to_wav_bytes(concat(clips))
+
+    def _next_page(self, book_id: int) -> Page | None:
+        pages = repo.list_pages(self.conn, book_id)
+        if not pages:
+            return None
+        playback = repo.get_playback(self.conn, book_id)
+        if playback is None or playback.chunk_id is None:
+            return pages[0]
+        last_chunk = repo.get_chunk(self.conn, playback.chunk_id)
+        last_page = repo.get_page(self.conn, last_chunk.page_id) if last_chunk else None
+        last_page_no = last_page.page_no if last_page else 0
+        return next((p for p in pages if p.page_no > last_page_no), None)
+
+    def play_next(self, book_id: int) -> tuple[Page, bytes | None] | None:
+        """Render the next unplayed page and advance the saved position."""
+        page = self._next_page(book_id)
+        if page is None:
+            return None
+        wav = self.render_page_audio(page.id)
+        chunks = repo.list_chunks_for_page(self.conn, page.id)
+        last_chunk_id = chunks[-1].id if chunks else None
+        repo.save_playback(self.conn, book_id, chunk_id=last_chunk_id, offset_s=0.0)
+        return page, wav
+
+    def restart(self, book_id: int) -> None:
+        """Clear the saved position so playback starts from page 1."""
+        repo.save_playback(self.conn, book_id, chunk_id=None, offset_s=0.0)
