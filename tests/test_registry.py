@@ -2,12 +2,14 @@ import pytest
 
 from app.config import Settings
 from app.providers.ocr.base import OCRProvider, OCRResult
+from app.providers.ocr.paddle import PaddleOCRProvider
 from app.providers.registry import (
     UnknownBackendError,
     get_ocr_provider,
     get_tts_provider,
 )
 from app.providers.tts.base import Audio, TTSProvider
+from app.providers.tts.indic_parler import IndicParlerProvider
 
 
 def test_mock_ocr_selected_by_name():
@@ -33,8 +35,14 @@ def test_selection_falls_back_to_settings():
     assert isinstance(get_tts_provider(settings=settings), TTSProvider)
 
 
-def test_unimplemented_backend_raises_clearly():
-    with pytest.raises(UnknownBackendError, match="paddle"):
-        get_ocr_provider("paddle")
+def test_default_backends_are_registered():
+    # Instantiating these is cheap — the heavy model import is deferred to use.
+    assert isinstance(get_ocr_provider("paddle"), PaddleOCRProvider)
+    assert isinstance(get_tts_provider("indic_parler"), IndicParlerProvider)
+
+
+def test_unwired_backend_raises_clearly():
+    with pytest.raises(UnknownBackendError, match="surya"):
+        get_ocr_provider("surya")
     with pytest.raises(UnknownBackendError, match="bulbul"):
         get_tts_provider("bulbul")

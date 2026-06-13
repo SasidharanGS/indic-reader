@@ -1,8 +1,10 @@
 """Config-driven factory mapping backend strings to provider implementations.
 
-Concrete ML providers (paddle, surya, sarvam_vision, indic_parler, indicf5,
-bulbul) arrive in later milestones. Until a backend is wired here, selecting it
-fails loudly with :class:`UnknownBackendError` rather than silently degrading.
+Wired so far: ``mock`` plus the M1 defaults ``paddle`` (OCR) and ``indic_parler``
+(TTS). Remaining backends (surya, sarvam_vision, indicf5, bulbul) arrive in later
+milestones; selecting an unwired one fails loudly with :class:`UnknownBackendError`.
+A wired backend whose optional heavy dependencies are not installed raises
+:class:`~app.providers.errors.MissingBackendDependencyError` when first used.
 """
 
 from __future__ import annotations
@@ -10,15 +12,19 @@ from __future__ import annotations
 from app.config import Settings, get_settings
 from app.providers.ocr.base import OCRProvider
 from app.providers.ocr.mock import MockOCRProvider
+from app.providers.ocr.paddle import PaddleOCRProvider
 from app.providers.tts.base import TTSProvider
+from app.providers.tts.indic_parler import IndicParlerProvider
 from app.providers.tts.mock import MockTTSProvider
 
 _OCR_PROVIDERS: dict[str, type] = {
     "mock": MockOCRProvider,
+    "paddle": PaddleOCRProvider,
 }
 
 _TTS_PROVIDERS: dict[str, type] = {
     "mock": MockTTSProvider,
+    "indic_parler": IndicParlerProvider,
 }
 
 
