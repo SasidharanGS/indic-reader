@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     sarvam_api_key: str | None = None
     telegram_bot_token: str | None = None
     hf_token: str | None = None  # Hugging Face token for gated models (e.g. indic_parler)
+    preprocess_images: bool = False  # deskew/contrast/crop a page before OCR
 
 
 @lru_cache

@@ -1279,6 +1279,8 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "numpy" },
+    { name = "pillow" },
     { name = "pydantic-settings" },
     { name = "python-telegram-bot" },
     { name = "uvicorn" },
@@ -1286,11 +1288,9 @@ dependencies = [
 
 [package.optional-dependencies]
 models = [
-    { name = "numpy" },
     { name = "paddleocr" },
     { name = "paddlepaddle" },
     { name = "parler-tts" },
-    { name = "pillow" },
     { name = "torch" },
     { name = "transformers" },
 ]
@@ -1305,11 +1305,11 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.110" },
     { name = "httpx", specifier = ">=0.27" },
-    { name = "numpy", marker = "extra == 'models'", specifier = ">=2.3.5" },
+    { name = "numpy", specifier = ">=2.3.5" },
     { name = "paddleocr", marker = "extra == 'models'", specifier = ">=3.7.0" },
     { name = "paddlepaddle", marker = "extra == 'models'", specifier = ">=3.3.1" },
     { name = "parler-tts", marker = "extra == 'models'", git = "https://github.com/huggingface/parler-tts.git" },
-    { name = "pillow", marker = "extra == 'models'", specifier = ">=12.2.0" },
+    { name = "pillow", specifier = ">=12.2.0" },
     { name = "pydantic-settings", specifier = ">=2.2" },
     { name = "python-telegram-bot", specifier = ">=21" },
     { name = "torch", marker = "extra == 'models'", specifier = ">=2.12.0" },
