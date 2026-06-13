@@ -20,6 +20,29 @@ Everything runs locally and free by default; the pipeline is provider-swappable 
 | TTS | AI4Bharat Indic Parler-TTS | AI4Bharat IndicF5 (max quality) / Sarvam Bulbul |
 | Client | Telegram bot (v0) | PWA / Flutter app |
 
+## Running the default backends (M1)
+
+The OCR/TTS models are optional, lazily-imported dependencies — kept out of the
+base install so `uv sync` and CI stay light. Install them into the project venv
+when you want the real stack:
+
+```bash
+# PaddleOCR (default OCR)
+uv pip install paddleocr paddlepaddle pillow
+# Indic Parler-TTS (default TTS)
+uv pip install torch transformers numpy "parler-tts @ git+https://github.com/huggingface/parler-tts.git"
+```
+
+Then run one page through the pipeline:
+
+```bash
+OCR_BACKEND=paddle TTS_BACKEND=indic_parler \
+    uv run python scripts/demo_page.py path/to/page.jpg --lang hi --out out.wav
+```
+
+Selecting a backend without its packages installed raises a clear error naming
+the exact install command.
+
 ## Documentation
 
 - [`DESIGN.md`](./DESIGN.md) — problem, goals, scope, chosen config, UX flows, risks.
