@@ -1,16 +1,14 @@
 """PaddleOCR-backed OCR provider (ARCHITECTURE.md §5).
 
-Heavy dependencies (``paddleocr``, ``paddlepaddle``, ``pillow``) are imported
-lazily and are NOT part of the base install, so importing this module — and the
-registry — stays cheap and CI needs no models. Install them into the project
-venv to use this backend::
+Targets PaddleOCR **3.x** (the `models` extra pins `paddleocr>=3.7`). Heavy
+dependencies (``paddleocr``, ``paddlepaddle``, ``pillow``) are imported lazily
+and are NOT part of the base install, so importing this module — and the
+registry — stays cheap and CI needs no models. Install them with::
 
-    uv pip install paddleocr paddlepaddle pillow
+    uv sync --extra models
 
 Selecting ``OCR_BACKEND=paddle`` without them raises
 :class:`~app.providers.errors.MissingBackendDependencyError` with this hint.
-
-Note: PaddleOCR's API and language set vary across versions; verify/pin locally.
 """
 
 from __future__ import annotations
@@ -37,6 +35,43 @@ _LANG_TO_PADDLE = {
 _DEFAULT_PADDLE_LANG = "en"
 
 
+def _poly_to_bbox(poly) -> tuple[int, int, int, int] | None:
+    """Axis-aligned bounding box from a 4-point polygon (or None)."""
+    if poly is None:
+        return None
+    xs = [int(point[0]) for point in poly]
+    ys = [int(point[1]) for point in poly]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _extract_lines(result_item) -> tuple[list[str], list[float], list]:
+    """Return (texts, scores, polys) from one PaddleOCR result item.
+
+    Handles PaddleOCR 3.x (dict-like with parallel ``rec_texts`` / ``rec_scores``
+    / ``rec_polys`` lists) and falls back to the 2.x format (a list of
+    ``[box, (text, score)]`` entries).
+    """
+    try:  # PaddleOCR 3.x
+        texts = list(result_item["rec_texts"])
+        scores = [float(score) for score in result_item["rec_scores"]]
+        polys = result_item.get("rec_polys")
+        if polys is None:
+            polys = result_item.get("dt_polys")
+        polys = list(polys) if polys is not None else [None] * len(texts)
+        return texts, scores, polys
+    except (KeyError, TypeError, IndexError):
+        pass
+
+    texts: list[str] = []  # PaddleOCR 2.x
+    scores: list[float] = []
+    polys: list = []
+    for box, (text, score) in result_item or []:
+        texts.append(text)
+        scores.append(float(score))
+        polys.append(box)
+    return texts, scores, polys
+
+
 class PaddleOCRProvider:
     """Extracts text with PaddleOCR; recognizer chosen from the language hint."""
 
@@ -52,7 +87,15 @@ class PaddleOCRProvider:
             raise MissingBackendDependencyError(
                 f"The 'paddle' OCR backend needs extra packages. Install with: {_INSTALL_HINT}"
             ) from exc
-        return PaddleOCR(use_angle_cls=True, lang=paddle_lang)
+        # Disable the optional doc-orientation / unwarping / textline-orientation
+        # models (3.x): they add latency + extra downloads we don't need for
+        # upright printed pages.
+        return PaddleOCR(
+            lang=paddle_lang,
+            use_doc_orientation_classify=False,
+            use_doc_unwarping=False,
+            use_textline_orientation=False,
+        )
 
     def _engine_for(self, lang: str):
         paddle_lang = _LANG_TO_PADDLE.get(lang, _DEFAULT_PADDLE_LANG)
@@ -76,20 +119,18 @@ class PaddleOCRProvider:
         engine = self._engine_for(lang)
         array = self._decode_image(image)
 
-        # PaddleOCR returns one list of lines per image: [[ [box, (text, conf)], ... ]].
-        raw = engine.ocr(array, cls=True)
-        lines = raw[0] if raw and raw[0] else []
+        raw = engine.ocr(array)
+        if not raw:
+            return OCRResult(text="", lang=lang, confidence=0.0, blocks=[])
 
+        texts, scores, polys = _extract_lines(raw[0])
         blocks: list[Block] = []
-        confidences: list[float] = []
-        for box, (text, conf) in lines:
-            xs = [int(point[0]) for point in box]
-            ys = [int(point[1]) for point in box]
-            blocks.append(Block(text=text, bbox=(min(xs), min(ys), max(xs), max(ys))))
-            confidences.append(float(conf))
+        for idx, text in enumerate(texts):
+            poly = polys[idx] if idx < len(polys) else None
+            blocks.append(Block(text=text, bbox=_poly_to_bbox(poly)))
 
         # Reading order: top-to-bottom, then left-to-right (ARCHITECTURE §7).
         blocks.sort(key=lambda b: (b.bbox[1], b.bbox[0]) if b.bbox else (0, 0))
         text = "\n".join(block.text for block in blocks)
-        confidence = sum(confidences) / len(confidences) if confidences else 0.0
+        confidence = sum(scores) / len(scores) if scores else 0.0
         return OCRResult(text=text, lang=lang, confidence=confidence, blocks=blocks)
