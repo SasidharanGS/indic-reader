@@ -20,7 +20,7 @@ import io
 from app.providers.errors import MissingBackendDependencyError
 from app.providers.ocr.base import Block, OCRResult
 
-_INSTALL_HINT = "uv pip install paddleocr paddlepaddle pillow"
+_INSTALL_HINT = "uv sync --extra models"
 
 # Our language codes (from text.lang_detect) -> PaddleOCR recognizer codes.
 _LANG_TO_PADDLE = {

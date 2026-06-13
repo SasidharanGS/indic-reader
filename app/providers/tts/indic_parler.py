@@ -17,10 +17,7 @@ from __future__ import annotations
 from app.providers.errors import MissingBackendDependencyError
 from app.providers.tts.base import Audio
 
-_INSTALL_HINT = (
-    "uv pip install torch transformers numpy "
-    '"parler-tts @ git+https://github.com/huggingface/parler-tts.git"'
-)
+_INSTALL_HINT = "uv sync --extra models"
 
 MODEL_ID = "ai4bharat/indic-parler-tts"
 DEFAULT_DESCRIPTION = (

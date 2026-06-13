@@ -22,26 +22,24 @@ Everything runs locally and free by default; the pipeline is provider-swappable 
 
 ## Running the default backends (M1)
 
-The OCR/TTS models are optional, lazily-imported dependencies — kept out of the
-base install so `uv sync` and CI stay light. Install them into the project venv
-when you want the real stack:
+The OCR/TTS models are heavy, so they live in an optional `models` extra rather
+than the base install — `uv sync` and CI stay light. Install them when you want
+the real stack:
 
 ```bash
-# PaddleOCR (default OCR)
-uv pip install paddleocr paddlepaddle pillow
-# Indic Parler-TTS (default TTS)
-uv pip install torch transformers numpy "parler-tts @ git+https://github.com/huggingface/parler-tts.git"
+uv sync --extra models   # PaddleOCR + Indic Parler-TTS (torch, transformers, …)
 ```
 
-Then run one page through the pipeline:
+Then run one page through the pipeline (`--extra models` keeps the models in the
+environment while running):
 
 ```bash
 OCR_BACKEND=paddle TTS_BACKEND=indic_parler \
-    uv run python scripts/demo_page.py path/to/page.jpg --lang hi --out out.wav
+    uv run --extra models python scripts/demo_page.py path/to/page.jpg --lang hi --out out.wav
 ```
 
-Selecting a backend without its packages installed raises a clear error naming
-the exact install command.
+Selecting a backend without the `models` extra installed raises a clear error
+naming the command above.
 
 ## Documentation
 
