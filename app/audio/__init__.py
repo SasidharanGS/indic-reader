@@ -2,5 +2,6 @@
 
 from app.audio.cache import AudioCache, chunk_key
 from app.audio.concat import concat
+from app.audio.wav import to_wav_bytes
 
-__all__ = ["AudioCache", "chunk_key", "concat"]
+__all__ = ["AudioCache", "chunk_key", "concat", "to_wav_bytes"]
