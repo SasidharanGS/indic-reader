@@ -44,5 +44,5 @@ def test_default_backends_are_registered():
 def test_unwired_backend_raises_clearly():
     with pytest.raises(UnknownBackendError, match="surya"):
         get_ocr_provider("surya")
-    with pytest.raises(UnknownBackendError, match="bulbul"):
-        get_tts_provider("bulbul")
+    with pytest.raises(UnknownBackendError, match="indicf5"):
+        get_tts_provider("indicf5")
