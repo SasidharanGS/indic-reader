@@ -10,8 +10,9 @@ The voice is chosen by a natural-language **description**. By default we name on
 of the model's *recommended speakers* for the detected ``lang`` — the model card
 notes this is what keeps the voice consistent and intelligible (without a named
 speaker the voice is randomly sampled and often garbled). Pass an explicit
-``voice`` description to override. ``speed`` is accepted for interface
-compatibility but not yet applied (Parler has no direct speed control).
+``voice`` description to override. ``speed`` nudges the description's speaking
+rate (slow / moderate / fast). Optional ``do_sample``/``temperature`` enable
+sampling; both default to the originally verified greedy behavior.
 """
 
 from __future__ import annotations
@@ -44,14 +45,32 @@ _SPEAKERS = {
 _FALLBACK_SPEAKER = "Thoma"
 
 
-def _description_for(lang: str) -> str:
-    """Build a description naming the recommended speaker for ``lang``."""
+def _speed_descriptor(speed: float) -> str:
+    """Map a speed multiplier to a speaking-rate word for the description."""
+    if speed >= 1.15:
+        return "fast"
+    if speed <= 0.85:
+        return "slow"
+    return "moderate"
+
+
+def _description_for(lang: str, speed: float = 1.0) -> str:
+    """Build a description naming the recommended speaker for ``lang``.
+
+    At ``speed=1.0`` this is byte-identical to the original verified description.
+    """
     speaker = _SPEAKERS.get(lang, _FALLBACK_SPEAKER)
     return (
-        f"{speaker}'s voice is clear and natural, at a moderate speed and pitch. "
-        "The recording is very high quality, with very clear audio and almost no "
-        "background noise."
+        f"{speaker}'s voice is clear and natural, at a {_speed_descriptor(speed)} speed "
+        "and pitch. The recording is very high quality, with very clear audio and almost "
+        "no background noise."
     )
+
+
+def _generation_kwargs(do_sample: bool, temperature: float) -> dict:
+    """Sampling args for ``generate()``; empty (greedy) by default to preserve
+    the originally verified output."""
+    return {"do_sample": True, "temperature": temperature} if do_sample else {}
 
 
 def _is_gated_or_auth_error(exc: Exception) -> bool:
@@ -74,10 +93,14 @@ class IndicParlerProvider:
         device: str | None = None,
         description: str | None = None,
         hf_token: str | None = None,
+        do_sample: bool = False,
+        temperature: float = 1.0,
     ) -> None:
         self._device = device
         self._description = description  # explicit override; else per-language default
         self._hf_token = hf_token
+        self._do_sample = do_sample
+        self._temperature = temperature
         self._model = None
         self._tokenizer = None
         self._description_tokenizer = None
@@ -128,7 +151,7 @@ class IndicParlerProvider:
         self._ensure_loaded()
         import numpy as np
 
-        description = voice or self._description or _description_for(lang)
+        description = voice or self._description or _description_for(lang, speed)
         desc = self._description_tokenizer(description, return_tensors="pt").to(self._device)
         prompt = self._tokenizer(text, return_tensors="pt").to(self._device)
 
@@ -137,6 +160,7 @@ class IndicParlerProvider:
             attention_mask=desc.attention_mask,
             prompt_input_ids=prompt.input_ids,
             prompt_attention_mask=prompt.attention_mask,
+            **_generation_kwargs(self._do_sample, self._temperature),
         )
         waveform = generation.cpu().numpy().squeeze()
         sample_rate = int(self._model.config.sampling_rate)
