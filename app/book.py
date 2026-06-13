@@ -15,6 +15,7 @@ from app.audio.cache import chunk_key
 from app.audio.concat import concat
 from app.audio.wav import read_wav, to_wav_bytes
 from app.config import Settings, get_settings
+from app.imaging.preprocess import preprocess
 from app.providers.ocr.base import OCRProvider
 from app.providers.registry import get_ocr_provider, get_tts_provider
 from app.providers.tts.base import TTSProvider
@@ -64,7 +65,8 @@ class BookService:
             self.conn, book_id, image_path=str(image_path), page_no=page_no, status="processing"
         )
 
-        ocr_result = self.ocr.extract(image, lang_hint=lang_hint)
+        ocr_input = preprocess(image) if self.settings.preprocess_images else image
+        ocr_result = self.ocr.extract(ocr_input, lang_hint=lang_hint)
         cleaned = clean(ocr_result.text)
         lang = lang_hint or detect_lang(cleaned)
         text = normalize(cleaned, lang)
