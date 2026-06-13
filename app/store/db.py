@@ -46,20 +46,28 @@ CREATE TABLE IF NOT EXISTS playback (
 """
 
 
-def connect(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
-    """Open a connection, creating parent dirs and enabling foreign keys."""
+def connect(
+    db_path: Path | str = DEFAULT_DB_PATH, check_same_thread: bool = True
+) -> sqlite3.Connection:
+    """Open a connection, creating parent dirs and enabling foreign keys.
+
+    ``check_same_thread=False`` is needed by callers that touch the connection
+    from a worker thread (e.g. the bot's ``asyncio.to_thread`` processing).
+    """
     path = Path(db_path)
     if str(path) != ":memory:" and path.parent and not path.parent.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
-def init_db(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
+def init_db(
+    db_path: Path | str = DEFAULT_DB_PATH, check_same_thread: bool = True
+) -> sqlite3.Connection:
     """Create the schema if absent and return an open connection. Idempotent."""
-    conn = connect(db_path)
+    conn = connect(db_path, check_same_thread=check_same_thread)
     conn.executescript(SCHEMA)
     conn.commit()
     return conn
