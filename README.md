@@ -51,8 +51,14 @@ export TELEGRAM_BOT_TOKEN=<token from @BotFather>
 uv run --extra models python -m clients.telegram_bot
 ```
 
-Send a page photo (optionally caption it with a language hint like `hi` / `ta`).
-The bot replies with the recognized text and a WAV of the narration.
+**Quick read:** send a page photo (optionally caption it with a language hint
+like `hi` / `ta`). The bot replies with the recognized text and a WAV.
+
+**Book mode:** `/newbook <title>` starts a book; photos you then send are added
+as pages. `/listen` plays the next page (one clip per page) and resumes where
+you stopped; `/restart` replays from page 1; `/endbook` leaves book mode. Books,
+pages, and synthesized audio are persisted (SQLite + `data/audio_cache/`), so
+audio is reused and playback resumes across restarts.
 
 ## Documentation
 
