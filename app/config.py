@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     sarvam_api_key: str | None = None
     telegram_bot_token: str | None = None
+    hf_token: str | None = None  # Hugging Face token for gated models (e.g. indic_parler)
 
 
 @lru_cache

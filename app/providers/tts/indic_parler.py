@@ -4,7 +4,7 @@ Heavy dependencies (``torch``, ``transformers``, ``parler-tts``, ``numpy``) are
 imported lazily and are NOT in the base install. Install them into the venv to
 use this backend::
 
-    uv pip install torch transformers numpy "parler-tts @ git+https://github.com/huggingface/parler-tts.git"
+    uv sync --extra models
 
 The voice is chosen by a natural-language **description** string (passed as
 ``voice``), giving a consistent voice across a whole book without a reference
@@ -14,7 +14,8 @@ yet applied (Parler has no direct speed control); both are future refinements.
 
 from __future__ import annotations
 
-from app.providers.errors import MissingBackendDependencyError
+from app.config import get_settings
+from app.providers.errors import MissingBackendDependencyError, ModelAccessError
 from app.providers.tts.base import Audio
 
 _INSTALL_HINT = "uv sync --extra models"
@@ -26,12 +27,30 @@ DEFAULT_DESCRIPTION = (
 )
 
 
+def _is_gated_or_auth_error(exc: Exception) -> bool:
+    """True when an exception looks like a gated-repo / auth (401) failure."""
+    message = str(exc).lower()
+    return (
+        type(exc).__name__ in {"GatedRepoError", "RepositoryNotFoundError"}
+        or "gated" in message
+        or "401" in message
+        or "restricted" in message
+        or "authenticated" in message
+    )
+
+
 class IndicParlerProvider:
     """Synthesizes speech with Indic Parler-TTS; lazy model load on first use."""
 
-    def __init__(self, device: str | None = None, description: str | None = None) -> None:
+    def __init__(
+        self,
+        device: str | None = None,
+        description: str | None = None,
+        hf_token: str | None = None,
+    ) -> None:
         self._device = device
         self._description = description or DEFAULT_DESCRIPTION
+        self._hf_token = hf_token
         self._model = None
         self._tokenizer = None
         self._description_tokenizer = None
@@ -57,11 +76,24 @@ class IndicParlerProvider:
             else:
                 self._device = "cpu"
 
-        self._model = ParlerTTSForConditionalGeneration.from_pretrained(MODEL_ID).to(self._device)
-        self._tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-        self._description_tokenizer = AutoTokenizer.from_pretrained(
-            self._model.config.text_encoder._name_or_path
-        )
+        token = self._hf_token or get_settings().hf_token
+        try:
+            self._model = ParlerTTSForConditionalGeneration.from_pretrained(
+                MODEL_ID, token=token
+            ).to(self._device)
+            self._tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, token=token)
+            self._description_tokenizer = AutoTokenizer.from_pretrained(
+                self._model.config.text_encoder._name_or_path, token=token
+            )
+        except Exception as exc:
+            if _is_gated_or_auth_error(exc):
+                raise ModelAccessError(
+                    f"{MODEL_ID} is a gated Hugging Face model. Request access at "
+                    f"https://huggingface.co/{MODEL_ID} (click 'Agree and access "
+                    f"repository'), then authenticate with `uv run hf auth login` "
+                    f"or set HF_TOKEN in .env."
+                ) from exc
+            raise
 
     def synthesize(
         self, text: str, lang: str, voice: str | None = None, speed: float = 1.0

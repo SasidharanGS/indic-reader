@@ -8,6 +8,7 @@ end-to-end without any heavy dependencies.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from app.audio.cache import AudioCache, chunk_key
@@ -18,6 +19,8 @@ from app.providers.registry import get_ocr_provider, get_tts_provider
 from app.providers.tts.base import Audio, TTSProvider
 from app.text import DEFAULT_MAX_CHARS, chunk, clean, detect_lang, normalize
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class PageResult:
@@ -26,8 +29,9 @@ class PageResult:
     text: str
     lang: str
     chunks: list[str]
-    audio: Audio
+    audio: Audio | None
     cache_hits: int
+    tts_error: str | None = None
 
 
 class Pipeline:
@@ -63,16 +67,31 @@ class Pipeline:
         backend = self.settings.tts_backend
         clips: list[Audio] = []
         cache_hits = 0
-        for piece in chunks:
-            key = chunk_key(piece, voice, backend, speed)
-            cached = self.cache.get(key)
-            if cached is not None:
-                cache_hits += 1
-                clips.append(cached)
-                continue
-            audio = self.tts.synthesize(piece, lang=lang, voice=voice, speed=speed)
-            self.cache.set(key, audio)
-            clips.append(audio)
+        tts_error: str | None = None
+        try:
+            for piece in chunks:
+                key = chunk_key(piece, voice, backend, speed)
+                cached = self.cache.get(key)
+                if cached is not None:
+                    cache_hits += 1
+                    clips.append(cached)
+                    continue
+                clip = self.tts.synthesize(piece, lang=lang, voice=voice, speed=speed)
+                self.cache.set(key, clip)
+                clips.append(clip)
+        except Exception as exc:
+            # Degrade gracefully: keep the recognized text (ARCHITECTURE §13).
+            logger.warning("TTS failed (%s); returning text only: %s", type(exc).__name__, exc)
+            tts_error = str(exc)
+            clips = []
+            cache_hits = 0
 
-        audio = concat(clips) if clips else Audio(sample_rate=0, duration_s=0.0, samples=b"")
-        return PageResult(text=text, lang=lang, chunks=chunks, audio=audio, cache_hits=cache_hits)
+        audio = concat(clips) if clips else None
+        return PageResult(
+            text=text,
+            lang=lang,
+            chunks=chunks,
+            audio=audio,
+            cache_hits=cache_hits,
+            tts_error=tts_error,
+        )
