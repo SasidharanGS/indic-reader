@@ -13,6 +13,7 @@ authors = [{ name = "Sasidharan GS" }]
 dependencies = [
     "fastapi>=0.110",
     "pydantic-settings>=2.2",
+    "python-telegram-bot>=21",
     "uvicorn>=0.29",
 ]
 
@@ -47,7 +48,7 @@ select = ["E", "F", "I", "UP", "B"]
 testpaths = ["tests"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["app"]
+packages = ["app", "clients"]
 
 [tool.uv.sources]
 parler-tts = { git = "https://github.com/huggingface/parler-tts.git" }

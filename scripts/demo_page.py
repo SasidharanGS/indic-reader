@@ -12,9 +12,9 @@ TTS_BACKEND are set to (defaults: paddle + indic_parler).
 from __future__ import annotations
 
 import argparse
-import wave
 from pathlib import Path
 
+from app.audio.wav import to_wav_bytes
 from app.pipeline import Pipeline
 
 
@@ -34,11 +34,7 @@ def main() -> None:
     print(result.text)
 
     audio = result.audio
-    with wave.open(args.out, "wb") as wav:
-        wav.setnchannels(1)
-        wav.setsampwidth(2)  # 16-bit PCM
-        wav.setframerate(audio.sample_rate or 16000)
-        wav.writeframes(audio.samples or b"")
+    Path(args.out).write_bytes(to_wav_bytes(audio))
     print(f"Wrote {args.out} ({audio.duration_s:.1f}s @ {audio.sample_rate} Hz)")
 
 

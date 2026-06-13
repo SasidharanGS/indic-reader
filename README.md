@@ -4,7 +4,7 @@
 
 A personal scan-to-speech reader for "listening" to physical books — especially Indian-language print that has no audiobook. Snap a page (or a whole book), get natural narration you can pause and resume.
 
-**Status:** Design phase — no application code yet. See the docs below.
+**Status:** In progress — M0–M1 merged (provider-swappable pipeline; PaddleOCR + Indic Parler-TTS behind interfaces). M2 (Telegram bot) underway. See the docs below.
 
 ## Why
 
@@ -40,6 +40,19 @@ OCR_BACKEND=paddle TTS_BACKEND=indic_parler \
 
 Selecting a backend without the `models` extra installed raises a clear error
 naming the command above.
+
+## Telegram bot (v0)
+
+Drive the pipeline from your phone — send a photo, get the recognized text +
+narration back:
+
+```bash
+export TELEGRAM_BOT_TOKEN=<token from @BotFather>
+uv run --extra models python -m clients.telegram_bot
+```
+
+Send a page photo (optionally caption it with a language hint like `hi` / `ta`).
+The bot replies with the recognized text and a WAV of the narration.
 
 ## Documentation
 
