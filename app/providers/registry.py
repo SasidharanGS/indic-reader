@@ -14,6 +14,7 @@ from app.providers.ocr.base import OCRProvider
 from app.providers.ocr.mock import MockOCRProvider
 from app.providers.ocr.paddle import PaddleOCRProvider
 from app.providers.tts.base import TTSProvider
+from app.providers.tts.bulbul import BulbulProvider
 from app.providers.tts.indic_parler import IndicParlerProvider
 from app.providers.tts.mock import MockTTSProvider
 
@@ -25,6 +26,7 @@ _OCR_PROVIDERS: dict[str, type] = {
 _TTS_PROVIDERS: dict[str, type] = {
     "mock": MockTTSProvider,
     "indic_parler": IndicParlerProvider,
+    "bulbul": BulbulProvider,
 }
 
 

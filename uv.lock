@@ -1278,6 +1278,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "pydantic-settings" },
     { name = "python-telegram-bot" },
     { name = "uvicorn" },
@@ -1296,7 +1297,6 @@ models = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -1304,6 +1304,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.110" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "numpy", marker = "extra == 'models'", specifier = ">=2.3.5" },
     { name = "paddleocr", marker = "extra == 'models'", specifier = ">=3.7.0" },
     { name = "paddlepaddle", marker = "extra == 'models'", specifier = ">=3.3.1" },
@@ -1319,7 +1320,6 @@ provides-extras = ["models"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.27" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.6" },
 ]
