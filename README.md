@@ -4,7 +4,7 @@
 
 A personal scan-to-speech reader for "listening" to physical books — especially Indian-language print that has no audiobook. Snap a page (or a whole book), get natural narration you can pause and resume.
 
-**Status:** In progress — M0–M1 merged (provider-swappable pipeline; PaddleOCR + Indic Parler-TTS behind interfaces). M2 (Telegram bot) underway. See the docs below.
+**Status:** Working end-to-end — M0–M4 done: provider-swappable pipeline (PaddleOCR + Indic Parler-TTS, verified on real models), a Telegram bot, book mode with resume, optional OCR preprocessing, and a benchmark harness with a Sarvam Bulbul adapter. See the docs below.
 
 ## Why
 
@@ -69,9 +69,11 @@ Background research (market teardown + cost/open-source analysis) lives in the s
 
 ## Roadmap
 
-- **M0** — Backend skeleton: provider interfaces, registry, config, SQLite init.
-- **M1** — Core loop: PaddleOCR + Indic Parler-TTS, one image → audio.
-- **M2** — Telegram bot (photo → voice note). *First genuinely usable build.*
-- **M3** — Book mode: multi-page, chunk streaming, audio cache, resume, speed.
-- **M4** — Benchmark harness + Sarvam adapters (hybrid / full swap).
-- **M5** — App + optional LLM summarize/translate (stretch).
+- **M0** ✅ Backend skeleton: provider interfaces, registry, config, SQLite init.
+- **M1** ✅ Core loop: PaddleOCR + Indic Parler-TTS, one image → audio.
+- **M2** ✅ Telegram bot (photo → text + audio). *First genuinely usable build.*
+- **M3** ✅ Book mode: multi-page capture, on-disk audio cache, resume, persistence.
+- **M4** ✅ Benchmark harness (CER / latency / RTF) + Sarvam **Bulbul** TTS adapter. *(Sarvam Vision OCR — a batch API — tracked in [#30](https://github.com/SasidharanGS/indic-reader/issues/30).)*
+- **M5** — App (PWA/Flutter) + optional LLM summarize/translate (stretch).
+
+Also shipped: optional OCR preprocessing (deskew / contrast / crop) via `PREPROCESS_IMAGES=true`.
